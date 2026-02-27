@@ -1,19 +1,6 @@
 import Mathlib
-
-abbrev biPoly (R : Type _) (k : Nat) := Vector R (2 ^ k)
+import Algorithm.Poly.biPoly
 variable {R : Type _} [CommRing R]
-
-def poly_eval (f : biPoly R k) (x : R) : R :=
-  ∑ i : Fin (2 ^ k), f[i] * x ^ i.val
-
-def even (f : biPoly R (k + 1)) : biPoly R k :=
-  Vector.ofFn fun i => f[2 * i.val]
-
-def odd (f : biPoly R (k + 1)) : biPoly R k :=
-  Vector.ofFn fun i => f[2 * i.val + 1]
-
-def spilt_L (f : biPoly R (k + 1)) : biPoly R k :=
-  Vector.ofFn fun i => f[i]
 
 def calc_W (k : Nat) (ω : R) : biPoly R k :=
   Vector.ofFn fun i => ω ^ i.val
@@ -21,31 +8,20 @@ def calc_W (k : Nat) (ω : R) : biPoly R k :=
 def proot_inv (ω : R) (k : ℕ) : R := ω ^ (2 ^ k - 1)
 
 def dft (f : biPoly R k) (ω : R) : biPoly R k :=
-  (calc_W k ω).map fun x => poly_eval f x
+  (calc_W k ω).map fun x => f.eval  x
 
 def idft (f : biPoly R k) (ω : R)
   [inv : Invertible (2 ^ k : R)] : biPoly R k :=
       (dft f (proot_inv ω k)).map fun x => x * ⅟(2 ^ k: R)
 
-def poly_get (f : biPoly R k) (i : ℕ) : R :=
-  if w : i < 2 ^ k then f[i]
-  else 0
-
-def extend (f : biPoly R k) : biPoly R (k + 1) :=
-  Vector.ofFn fun i => poly_get f i
-
-def mul (F : biPoly R k) (G : biPoly R k) : biPoly R (k + 1) :=
-  Vector.ofFn fun i =>
-    ∑ j : Fin (2 ^ k), ∑ k : Fin (2 ^ k), if j.val + k.val = i then F[j] * G[k] else 0
-
 def _fft (f : biPoly R k) (W : biPoly R k) : biPoly R k :=
   match k with
   | 0 => f
   | k + 1 =>
-    let Wp := even W
-    let fE : biPoly R k := _fft (even f) Wp
-    let fO : biPoly R k :=  _fft (odd f) Wp
-    let W₂fO := Vector.zipWith (· * ·) (spilt_L W) fO
+    let Wp := W.even
+    let fE : biPoly R k := _fft (f.even) Wp
+    let fO : biPoly R k :=  _fft (f.odd) Wp
+    let W₂fO := Vector.zipWith (· * ·) (W.spilt_L) fO
     let l := (Vector.zipWith (· + ·) fE W₂fO)
     let r := (Vector.zipWith (· - ·) fE W₂fO)
     Vector.cast (by simp) l ++ r
@@ -91,14 +67,14 @@ def fin_even_odd_equiv (k : ℕ) : Fin (2 ^ k) ⊕ Fin (2 ^ k) ≃ Fin (2 ^ (k +
       · simp; omega
 
 lemma poly_parity_split (f : biPoly R (k + 1)) :
-  poly_eval (even f) (x ^ 2) + x * poly_eval (odd f) (x ^ 2) = poly_eval f x
+  (f.even).eval (x ^ 2) + x * (f.odd).eval (x ^ 2) = f.eval x
   := by
-    unfold poly_eval
-    have pE (i) (_ : i < 2 ^ k) : (even f)[i] = f[2 * i] := by
-      unfold even
+    unfold biPoly.eval
+    have pE (i) (_ : i < 2 ^ k) : f.even[i] = f[2 * i] := by
+      unfold biPoly.even
       simp only [Vector.getElem_ofFn]
-    have pO (i) (_ : i < 2 ^ k) : (odd f)[i] = f[2 * i + 1] := by
-      unfold odd
+    have pO (i) (_ : i < 2 ^ k) : f.odd[i] = f[2 * i + 1] := by
+      unfold biPoly.odd
       simp only [Vector.getElem_ofFn]
     simp only [Fin.getElem_fin, pE, pO]
     simp only [← pow_mul, Finset.mul_sum]
@@ -110,8 +86,8 @@ lemma W_sq_eq_next {ω : R} (hω : IsPrimitiveRoot ω (2 ^ (k + 1))) :
     exact IsPrimitiveRoot.pow (by exact Nat.two_pow_pos (k + 1)) hω (by omega)
 
 lemma even_W_eq_sq (ω : R) :
-  even (calc_W (k + 1) ω) = calc_W k (ω ^ 2) := by
-    unfold even calc_W
+  (calc_W (k + 1) ω).even  = calc_W k (ω ^ 2) := by
+    unfold biPoly.even calc_W
     ext i
     simp only [Vector.getElem_ofFn]
     exact pow_mul ω 2 i
@@ -135,7 +111,7 @@ theorem fft_eq_dft [IsDomain R] (f : biPoly R k) (ω : R) (hω : IsPrimitiveRoot
   induction k generalizing ω i with
     | zero =>
       simp only [Nat.pow_zero, calc_W, Fin.val_eq_zero, pow_zero, Vector.getElem_ofFn]
-      unfold _fft poly_eval
+      unfold _fft biPoly.eval
       simp only [Nat.pow_zero, Finset.univ_unique, Fin.default_eq_zero, Fin.isValue,
         Fin.val_eq_zero, pow_zero, mul_one, Finset.sum_singleton, Fin.getElem_fin]
       interval_cases i
@@ -146,7 +122,7 @@ theorem fft_eq_dft [IsDomain R] (f : biPoly R k) (ω : R) (hω : IsPrimitiveRoot
       by_cases h : i < (2 ^ k)
       · erw [Vector.getElem_append_left h]
         simp only [Vector.getElem_zipWith]
-        unfold spilt_L
+        unfold biPoly.spilt_L
         simp only [Vector.getElem_ofFn]
         rw [even_W_eq_sq]
         · simp only [q, p, Fin.getElem_fin]
@@ -156,7 +132,7 @@ theorem fft_eq_dft [IsDomain R] (f : biPoly R k) (ω : R) (hω : IsPrimitiveRoot
       · have rh : 2 ^ k ≤ i := by omega
         erw [Vector.getElem_append_right L (by simp; omega)]
         simp only [Nat.pow_eq, Nat.mul_eq, mul_one, Vector.getElem_zipWith]
-        unfold spilt_L
+        unfold biPoly.spilt_L
         simp only [Fin.getElem_fin, Vector.getElem_ofFn]
         simp only [even_W_eq_sq]
         simp only [q, p]
@@ -189,7 +165,7 @@ theorem sum_pow_ {ω : R} [IsDomain R] (hω : IsPrimitiveRoot ω (2 ^ k)) (i : �
 
 theorem dft_idft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
   (hω : IsPrimitiveRoot ω (2 ^ k)) (f : biPoly R k) : dft (idft f ω) ω = f := by
-    simp only [dft, poly_eval, idft, Fin.getElem_fin, calc_W, proot_inv, Vector.map_map,
+    simp only [dft, biPoly.eval, idft, Fin.getElem_fin, calc_W, proot_inv, Vector.map_map,
       Vector.getElem_map, Vector.getElem_ofFn, Function.comp_apply]
     ext i hi
     simp only [Finset.sum_mul, Vector.getElem_map, Vector.getElem_ofFn]
@@ -218,7 +194,7 @@ theorem dft_idft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
 
 theorem idft_dft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
   (hω : IsPrimitiveRoot ω (2 ^ k)) (f : biPoly R k) : idft (dft f ω) ω = f := by
-    simp only [idft, dft, poly_eval, Fin.getElem_fin, calc_W, Vector.getElem_map,
+    simp only [idft, dft, biPoly.eval, Fin.getElem_fin, calc_W, Vector.getElem_map,
       Vector.getElem_ofFn, proot_inv, Vector.map_map]
     ext i hi
     simp only [Vector.getElem_map, Vector.getElem_ofFn, Function.comp_apply]
@@ -265,22 +241,21 @@ theorem fft_ifft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
   (hω : IsPrimitiveRoot ω (2 ^ k)) (f : biPoly R k) : fft (ifft f ω) ω = f := by
     simp only [fft_eq_dft, ifft_eq_idft, dft_idft_eq_self, hω]
 
-
 theorem ifft_fft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
   (hω : IsPrimitiveRoot ω (2 ^ k)) (f : biPoly R k) : ifft (fft f ω) ω = f := by
     simp only [hω, fft_eq_dft, ifft_eq_idft, idft_dft_eq_self]
 
 def mul_fft [IsDomain R] [p : Invertible (2 ^ (k + 1) : R)]
    (F : biPoly R k) (G : biPoly R k) (ω : R) : biPoly R (k + 1) :=
-    let (F', G') := (extend F, extend G)
+    let (F', G') := (F.extend, G.extend)
     let (Fp, Gp) := (fft F' ω, fft G' ω)
     let FGp := Vector.zipWith (· * ·) Fp Gp
     ifft FGp ω
 
 theorem eval_mul_eq_mul_eval (f : biPoly R k) (g : biPoly R k) (x : R) :
-  poly_eval (mul f g) x = poly_eval f x * poly_eval g x := by
-  unfold mul
-  simp only [poly_eval, Fin.getElem_fin, Vector.getElem_ofFn]
+  (f.mul g).eval x = f.eval x * g.eval x := by
+  unfold biPoly.mul
+  simp only [biPoly.eval, Fin.getElem_fin, Vector.getElem_ofFn]
   simp only [Fintype.sum_mul_sum]
   simp only [Finset.sum_mul, ite_mul, zero_mul]
   rw [Finset.sum_comm]
@@ -303,16 +278,16 @@ theorem eval_mul_eq_mul_eval (f : biPoly R k) (g : biPoly R k) (x : R) :
     rw [← pd]
   · simp
 
-theorem extend_eq_self (F : biPoly R k) (x : R) :  (poly_eval (extend F) x) = (poly_eval F x):= by
-  unfold poly_eval extend
-  simp only [Fin.getElem_fin, Vector.getElem_ofFn, poly_get]
+theorem extend_eq_self (F : biPoly R k) (x : R) :  (F.extend.eval x) = (F.eval  x):= by
+  unfold biPoly.eval
+  simp only [Fin.getElem_fin, getElem_extend]
   rw [Finset.sum_fin_eq_sum_range]
   rw [Finset.sum_fin_eq_sum_range]
   apply Finset.sum_congr_of_eq_on_inter <;> grind
 
 theorem mul_fft_eq_mul [IsDomain R] [p : Invertible (2 ^ (k + 1) : R)]
    (hω : IsPrimitiveRoot ω (2 ^ (k + 1)))
-   (F : biPoly R k) (G : biPoly R k) : mul_fft F G ω = mul F G := by
+   (F : biPoly R k) (G : biPoly R k) : mul_fft F G ω = F.mul G := by
   unfold mul_fft
   simp only
   apply_fun fft (ω := ω)

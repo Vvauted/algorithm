@@ -1,4 +1,5 @@
 import Mathlib
+import Algorithm.Poly.cPoly
 
 abbrev biPoly (R : Type _) (k : Nat) := Vector R (2 ^ k)
 variable {R : Type _} [AddCommMonoid R] [Mul R] [Pow R ℕ]
@@ -36,3 +37,10 @@ lemma getElem_extend (f : biPoly R k) {i : ℕ} (hi) :
   · erw [Vector.getElem_append_right]
     · simp only [Vector.getElem_replicate]
     · omega
+
+namespace cPoly
+
+def tobiPoly (F : cPoly) : biPoly :=
+
+
+end cPoly

@@ -15,18 +15,13 @@ def ofPolynomial (p : R[X]) : cPoly R :=
 
 end cPoly
 
+@[simp]
 lemma ofPolynomial_toPolynomial_eq_self (F : R[X]) : (cPoly.ofPolynomial F).toPolynomial = F := by
   unfold cPoly.ofPolynomial cPoly.toPolynomial
   simp only [Lean.Elab.WF.paramLet, Fin.getElem_fin, Array.getElem_ofFn]
-  ext i
-  simp only [finset_sum_coeff, coeff_C_mul, coeff_X_pow, mul_ite, mul_one, mul_zero]
-  simp [Finset.sum_ite_eq]
-
-
-  conv_lhs =>
-    arg 2; ext; rw [ite_eq_dite]
-    arg 2; intro h; rw [← h]
-  simp only [dite_eq_ite]
-
-
-  norm_cast
+  conv_rhs => rw [F.as_sum_range_C_mul_X_pow]
+  rw [Fin.sum_univ_eq_sum_range (fun x ↦ C (F.coeff x) * X ^ x)]
+  apply Finset.sum_congr_of_eq_on_inter
+  · simp +contextual
+  · simp +contextual
+  · simp

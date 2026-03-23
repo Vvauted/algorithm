@@ -1,4 +1,6 @@
-import Mathlib
+import Mathlib.Data.Nat.Log
+import Mathlib.Data.Vector.Basic
+import Mathlib.Tactic
 import Algorithm.Poly.cPoly
 
 abbrev biPoly (R : Type _) (k : Nat) := Vector R (2 ^ k)
@@ -26,6 +28,8 @@ def mul (F : biPoly R k) (G : biPoly R k) : biPoly R (k + 1) :=
 
 def tocPoly (F : biPoly R k) : cPoly R := F.toArray
 
+instance {R : Type _} {k : Nat} : CoeOut (biPoly R k) (cPoly R) := ⟨biPoly.tocPoly⟩
+
 end biPoly
 
 omit [Mul R] [Pow R ℕ] in
@@ -43,13 +47,13 @@ lemma getElem_extend (f : biPoly R k) {i : ℕ} (hi) :
 namespace cPoly
 
 def tobiPoly_size (F : cPoly R) : Nat :=
-  if F.size = 0 then 1 else (Nat.log2 (F.size - 1) + 1)
+  if F.size = 0 then 0 else (Nat.log2 (F.size - 1) + 1)
 
 omit [Mul R] [Pow R ℕ] [AddCommMonoid R] in
 theorem self_size_le_tobiPoly_size (F : cPoly R) :
   F.size ≤ 2 ^ F.tobiPoly_size := by
   unfold tobiPoly_size
-  simp only [Array.size_eq_zero_iff, pow_ite, pow_one]
+  simp only [Array.size_eq_zero_iff, pow_ite]
   split_ifs with p
   · simp [p]
   · have p := Nat.lt_log2_self (n := F.size - 1)

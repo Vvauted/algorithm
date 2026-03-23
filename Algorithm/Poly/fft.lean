@@ -1,4 +1,5 @@
-import Mathlib
+import Mathlib.RingTheory.RootsOfUnity.PrimitiveRoots
+import Mathlib.Tactic
 import Algorithm.Poly.biPoly
 variable {R : Type _} [CommRing R]
 

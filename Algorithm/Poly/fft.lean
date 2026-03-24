@@ -193,6 +193,8 @@ theorem dft_idft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
         rw [Finset.card_eq_one.mpr ⟨⟨i, hi⟩, by ext; simp [Fin.ext_iff]⟩]
         simp [mul_comm]
 
+
+
 theorem idft_dft_eq_self [IsDomain R] [p : Invertible (2 ^ k : R)]
   (hω : IsPrimitiveRoot ω (2 ^ k)) (f : biPoly R k) : idft (dft f ω) ω = f := by
     simp only [idft, dft, biPoly.eval, Fin.getElem_fin, calc_W, Vector.getElem_map,

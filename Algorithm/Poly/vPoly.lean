@@ -25,7 +25,26 @@ noncomputable def trunc_toFinsupp (F : R[X]) (n : ℕ) : ℕ →₀ R :=
 lemma trunc_coeff_eq (F : R[X]) (n : ℕ) : trunc_coeff F n i = (trunc F n).coeff i := by
   unfold trunc trunc_coeff
   have p := modByMonic_add_div (q := X ^ n) F (by simp)
-  sorry
+  nontriviality
+  by_cases hn : n = 0
+  · simp [hn]
+  · split_ifs with hi
+    · conv_lhs => rw [← p]
+      simp only [coeff_add, add_eq_left]
+      apply X_pow_dvd_iff (n := n).mp
+      · simp
+      · exact hi
+    · have hp : (X : R[X]) ^ n ≠ 1 := by
+        intro hxn
+        have h0 := congrArg (fun P : R[X] => P.coeff 0) hxn
+        simp only [coeff_X_pow, coeff_one_zero, ite_eq_left_iff, zero_ne_one, imp_false,
+          Decidable.not_not] at h0
+        symm at h0
+        contradiction
+      have hd := Polynomial.natDegree_modByMonic_lt F (q := X ^ n) (by simp) hp
+      refine Eq.symm (coeff_eq_zero_of_natDegree_lt ?_)
+      simp only [natDegree_X_pow, not_lt] at hd hi
+      omega
 
 @[simp]
 lemma trunc_toFinsupp_eq_trunc (F : R[X]) (n : ℕ) :
